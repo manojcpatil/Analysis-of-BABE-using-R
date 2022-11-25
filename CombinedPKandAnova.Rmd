@@ -1,0 +1,133 @@
+---
+title: "Combined"
+author: "Manoj"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(purrr)
+library(dplyr)
+library(flextable)
+```
+
+```{r, echo=FALSE}
+describe=function(x){
+  temp=c(min(x),max(x),mean(x),stdev(x),var(x),range(x))
+  return(temp)
+}
+```
+
+```{r}
+pkpara=function(ti,Ci)
+{
+Cmax=max(Ci)
+Tmax=ti[which.max(Ci)]
+nC=length(Ci)
+AUCt=sum((Ci[2:nC]+Ci[1:(nC-1)])*(ti[2:nC]-ti[1:(nC-1)]))/2
+tTemp=ti[(which.max(Ci)+1):nC]
+LCTemp=log10(Ci[(which.max(Ci)+1):nC])
+Ke=lm(LCTemp~tTemp)$coefficients[2]*(-2.303)
+thalf=0.693/Ke
+AUCinf=AUCt+Ci[nC]/Ke
+Out=data.frame("Cmax"=Cmax,"Tmax"=Tmax,"AUCt"=AUCt,"AUCinf"=AUCinf,"Ke"=Ke,"thalf"=thalf)
+row.names(Out)=""
+return(Out)
+}
+```
+
+```{r}
+crossanova=function(Y,Seq,Per,Sub)
+{
+data=data.frame(Y,Seq,Per,Sub)
+Y11=data[data$Per==1&data$Seq==1,1];n1=length(Y11)
+Y21=data[data$Per==2&data$Seq==1,1]
+Y12=data[data$Per==1&data$Seq==2,1]
+Y22=data[data$Per==2&data$Seq==2,1];n2=length(Y22)
+
+df_temp=data.frame(c(Y11,Y12),c(Y21,Y22))
+
+Chat=(mean(Y12)+mean(Y22))-(mean(Y11)+mean(Y21))
+Fhat=(((mean(Y21)-mean(Y11))-(mean(Y22)-mean(Y12)))/2)
+Phat=(((mean(Y21)-mean(Y11))-(mean(Y12)-mean(Y22)))/2)
+
+SStotal=(2*(n1+n2)-1)*var(data$Y)
+
+SSBetween=2*sum((apply(df_temp,1,mean)-mean(data$Y))^2)
+SSwithin=sum(apply(df_temp,1,var))
+
+SScarry=2*n1*n2/(n1+n2)*Chat^2/4
+SSinter=SSBetween-SScarry
+
+SSdrug=2*n1*n2/(n1+n2)*Fhat^2
+SSperiod=2*n1*n2/(n1+n2)*Phat^2
+SSintra=SSwithin-SSdrug-SSperiod
+
+source1=c("Carry","Inter","Drug","Period","Intra","Total")
+SS=round(c(SScarry,SSinter,SSdrug,SSperiod,SSintra,SStotal),3)
+df=c(1,n1+n2-2,1,1,n1+n2-2,2*(n1+n2)-1)
+MSq=round(SS/df,3)
+
+Fcal=round(c(MSq[1]/MSq[2],MSq[2:4]/MSq[5],0,0),3)
+Pval=rep(0,6)
+Pval[1]=1-pf(Fcal[1],df[1],df[2])
+Pval[2:4]=1-pf(Fcal[2:4],df[2:4],df[5])
+Pval=round(Pval,3)
+return(data.frame("Source"=source1,"DF"=df,SumofSq=SS,MSq,Fcal,Pval))
+}
+```
+
+```{r}
+data<- read.csv("C:/Users/Hp/Dropbox/Clinical Trials using R software/BABEData22.csv");
+
+crossanova("Y"=data$Y,"Seq"=data$Seq,"Per"=data$Per,"Sub"=data$Sub)
+```
+
+```{r}
+df_temp=read.csv("C:/Users/Hp/Dropbox/Clinical Trials using R software/BABEData.csv",header=F)
+tp=df_temp[1,5:ncol(df_temp)]
+cp=df_temp[2:nrow(df_temp),5:ncol(df_temp)]
+```
+
+```{r, echo=FALSE}
+Out=pkpara(unlist(tp),unlist(cp[1,]))
+for(i in 2:nrow(cp)){
+  Out=rbind(Out,pkpara(unlist(tp),unlist(cp[i,])))
+}
+Out=data.frame(Out)
+df_temp2=df_temp[2:nrow(df_temp),1:4]
+colnames(df_temp2)=df_temp[1,1:4]
+df3=cbind(df_temp2,Out)
+df3
+```
+
+
+```{r}
+crossanova(df3$Cmax,df3$seq,df3$Per,df3$Sub)
+```
+
+# Anova for Tmax 
+
+
+```{r}
+crossanova(df3$Tmax,df3$seq,df3$Per,df3$Sub)
+```
+
+Conclusion hiodshvoafdvoidfh bdnafip bn'odfi
+
+```{r}
+crossanova(df3$AUCt,df3$seq,df3$Per,df3$Sub)
+```
+
+```{r}
+crossanova(df3$AUCinf,df3$seq,df3$Per,df3$Sub)
+```
+
+```{r}
+crossanova(df3$thalf,df3$seq,df3$Per,df3$Sub)
+```
+
+```{r}
+crossanova(df3$Ke,df3$seq,df3$Per,df3$Sub)
+```
